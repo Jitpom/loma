@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Ayutthaya: Cyber Fighter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050510;
+            font-family: 'Chakra Petch', sans-serif;
+            user-select: none;
+            color: white;
+        }
+
+        h1, h2, h3, .cyber-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through to UI elements specifically */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+
+        /* Thai Cyberpunk Pattern Backgrounds */
+        .thai-pattern-bg {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 25%, transparent 25%) -50px 0,
+                        linear-gradient(225deg, rgba(255, 215, 0, 0.1) 25%, transparent 25%) -50px 0,
+                        linear-gradient(315deg, rgba(255, 215, 0, 0.1) 25%, transparent 25%),
+                        linear-gradient(45deg, rgba(255, 215, 0, 0.1) 25%, transparent 25%);
+            background-size: 100px 100px;
+            background-color: rgba(10, 10, 25, 0.9);
+            border: 2px solid #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 0 20px rgba(255, 215, 0, 0.1);
+        }
+
+        /* Neon Buttons */
+        .cyber-btn {
+            background: transparent;
+            color: #fff;
+            border: 2px solid #00f0ff;
+            box-shadow: 0 0 10px #00f0ff, inset 0 0 10px #00f0ff;
+            text-transform: uppercase;
+            transition: all 0.2s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+        .cyber-btn:hover {
+            background: #00f0ff;
+            color: #000;
+            box-shadow: 0 0 20px #00f0ff, inset 0 0 20px #00f0ff;
+            transform: scale(1.05);
+        }
+        .cyber-btn.gold {
+            border-color: #ffd700;
+            box-shadow: 0 0 10px #ffd700, inset 0 0 10px #ffd700;
+        }
+        .cyber-btn.gold:hover {
+            background: #ffd700;
+            box-shadow: 0 0 20px #ffd700, inset 0 0 20px #ffd700;
+        }
+
+        /* Character Selection Cards */
+        .char-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            filter: grayscale(80%);
+            opacity: 0.7;
+        }
+        .char-card.selected-p1 {
+            filter: grayscale(0%);
+            opacity: 1;
+            border-color: #00f0ff;
+            box-shadow: 0 0 20px #00f0ff;
+            transform: translateY(-10px);
+        }
+        .char-card.selected-p2 {
+            filter: grayscale(0%);
+            opacity: 1;
+            border-color: #ff003c;
+            box-shadow: 0 0 20px #ff003c;
+            transform: translateY(-10px);
+        }
+
+        /* Health & Energy Bars */
+        .bar-container {
+            width: 100%;
+            height: 24px;
+            background: #222;
+            border: 2px solid #555;
+            position: relative;
+            transform: skewX(-15deg);
+            overflow: hidden;
+        }
+        .hp-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff003c, #ff5e00);
+            width: 100%;
+            transition: width 0.2s ease-out;
+        }
+        .energy-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00f0ff, #0055ff);
+            width: 0%;
+            transition: width 0.2s ease-out;
+        }
+
+        .glitch-text {
+            animation: glitch 2s infinite;
+        }
+
+        @keyframes glitch {
+            0% { text-shadow: 2px 0 #00f0ff, -2px 0 #ff003c; }
+            5% { text-shadow: -2px 0 #00f0ff, 2px 0 #ff003c; }
+            10% { text-shadow: 2px 0 #00f0ff, -2px 0 #ff003c; }
+            15% { text-shadow: none; }
+            100% { text-shadow: none; }
+        }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-layer">
+        <!-- Main Menu -->
+        <div id="screen-menu" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/80 backdrop-blur-sm z-50">
+            <h2 class="text-3xl text-yellow-400 mb-2 tracking-widest">๒๕๖๙</h2>
+            <h1 class="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-yellow-400 to-pink-500 cyber-font glitch-text mb-8 text-center drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]">
+                NEON<br>AYUTTHAYA
+            </h1>
+            <p class="text-xl text-gray-300 mb-12 max-w-lg text-center">Enter the cyber-realm. Harness ancient spirit energy. Prove your might in the digital arena.</p>
+            <button id="btn-start" class="cyber-btn gold px-12 py-4 text-2xl font-bold rounded-sm">Enter Arena</button>
+        </div>
+
+        <!-- Character Select Screen -->
+        <div id="screen-select" class="absolute inset-0 flex flex-col items-center justify-start pt-10 pointer-events-auto bg-black/90 hidden z-40">
+            <h1 class="text-4xl text-yellow-400 cyber-font mb-2">SELECT FIGHTER</h1>
+            <p id="select-status" class="text-xl text-cyan-400 mb-8">Player 1: Choose your warrior</p>
+            
+            <div class="flex flex-wrap justify-center gap-6 px-4 max-w-6xl" id="roster-container">
+                <!-- Character Cards injected via JS -->
+            </div>
+
+            <div class="mt-12 flex gap-8 text-sm text-gray-400 bg-gray-900/50 p-4 rounded border border-gray-700">
+                <div>
+                    <h3 class="text-cyan-400 font-bold mb-2">Player 1 Controls</h3>
+                    <p>Move: W A S D</p>
+                    <p>Attack: F</p>
+                    <p class="text-yellow-400">Secret Move: G</p>
+                </div>
+                <div class="border-l border-gray-700"></div>
+                <div>
+                    <h3 class="text-pink-400 font-bold mb-2">Player 2 Controls</h3>
+                    <p>Move: Arrow Keys</p>
+                    <p>Attack: L</p>
+                    <p class="text-yellow-400">Secret Move: K</p>
+                </div>
+            </div>
+
+            <button id="btn-fight" class="cyber-btn px-12 py-4 text-2xl font-bold rounded-sm mt-8 hidden">FIGHT!</button>
+        </div>
+
+        <!-- In-Game HUD -->
+        <div id="screen-hud" class="absolute inset-0 flex flex-col justify-between p-6 pointer-events-none hidden z-30">
+            <div class="flex justify-between items-start w-full gap-10">
+                <!-- Player 1 HUD -->
+                <div class="w-1/2 max-w-md">
+                    <div class="flex justify-between items-end mb-1">
+                        <span id="p1-name" class="text-cyan-400 text-xl font-bold cyber-font">P1 NAME</span>
+                        <span class="text-gray-400 text-sm">HP</span>
+                    </div>
+                    <div class="bar-container mb-2 border-cyan-500">
+                        <div id="p1-hp" class="hp-bar" style="background: linear-gradient(90deg, #00f0ff, #0088ff);"></div>
+                    </div>
+                    <div class="flex justify-between items-end mb-1">
+                        <span class="text-yellow-400 text-xs tracking-wider">SPIRIT ENERGY</span>
+                    </div>
+                    <div class="bar-container h-3 border-yellow-600">
+                        <div id="p1-energy" class="energy-bar" style="background: linear-gradient(90deg, #ffd700, #ff8c00);"></div>
+                    </div>
+                    <p id="p1-secret-ready" class="text-yellow-400 text-sm font-bold mt-1 cyber-font hidden animate-pulse">SECRET READY (G)!</p>
+                </div>
+
+                <!-- Timer / Info -->
+                <div class="text-center">
+                    <div id="round-timer" class="text-4xl text-white cyber-font font-black drop-shadow-[0_0_10px_#fff]">99</div>
+                </div>
+
+                <!-- Player 2 HUD -->
+                <div class="w-1/2 max-w-md text-right">
+                    <div class="flex justify-between items-end mb-1 flex-row-reverse">
+                        <span id="p2-name" class="text-pink-400 text-xl font-bold cyber-font">P2 NAME</span>
+                        <span class="text-gray-400 text-sm">HP</span>
+                    </div>
+                    <div class="bar-container mb-2 border-pink-500" style="transform: skewX(15deg);">
+                        <div id="p2-hp" class="hp-bar float-right" style="background: linear-gradient(270deg, #ff003c, #8800ff);"></div>
+                    </div>
+                    <div class="flex justify-between items-end mb-1 flex-row-reverse">
+                        <span class="text-yellow-400 text-xs tracking-wider">SPIRIT ENERGY</span>
+                    </div>
+                    <div class="bar-container h-3 border-yellow-600" style="transform: skewX(15deg);">
+                        <div id="p2-energy" class="energy-bar float-right" style="background: linear-gradient(270deg, #ffd700, #ff8c00);"></div>
+                    </div>
+                    <p id="p2-secret-ready" class="text-yellow-400 text-sm font-bold mt-1 cyber-font hidden animate-pulse">SECRET READY (K)!</p>
+                </div>
+            </div>
+            
+            <div id="battle-message" class="text-center text-5xl cyber-font text-yellow-400 font-bold drop-shadow-[0_0_20px_#ffd700] mb-20 scale-0 transition-transform duration-300">
+                FIGHT!
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="screen-gameover" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-black/80 backdrop-blur-sm hidden z-50">
+            <h1 id="winner-text" class="text-6xl font-black text-white cyber-font mb-4 drop-shadow-[0_0_20px_#fff]">PLAYER WINS</h1>
+            <p class="text-2xl text-yellow-400 mb-8">The spirit realm acknowledges your victory.</p>
+            <div class="flex gap-4">
+                <button id="btn-rematch" class="cyber-btn px-8 py-3 text-xl font-bold rounded-sm">Rematch</button>
+                <button id="btn-char-select" class="cyber-btn gold px-8 py-3 text-xl font-bold rounded-sm">Change Characters</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & CONSTANTS ---
+        const CHARACTERS = [
+            { 
+                id: 'singha', 
+                name: 'Singha Prime', 
+                title: 'The Cyber Lion',
+                desc: 'Balanced warrior with a broad spirit sword.',
+                color: 0x00f0ff, // Cyan
+                colorHex: '#00f0ff',
+                weapon: 'Neon Sword',
+                secretName: 'Roar of Ayutthaya',
+                secretDesc: 'A devastating ground-pound AOE blast.',
+                stats: { speed: 1.0, damage: 10, reach: 1.5 }
+            },
+            { 
+                id: 'hanuman', 
+                name: 'V-Hanuman', 
+                title: 'The Simian Glitch',
+                desc: 'Fast, agile fighter wielding an energy staff.',
+                color: 0xff003c, // Pink/Red
+                colorHex: '#ff003c',
+                weapon: 'Plasma Staff',
+                secretName: 'Monkey King Strike',
+                secretDesc: 'A rapid flurry of long-reaching strikes.',
+                stats: { speed: 1.3, damage: 7, reach: 2.0 }
+            },
+            { 
+                id: 'naga', 
+                name: 'Naga Protocol', 
+                title: 'The Serpent Blade',
+                desc: 'Deadly assassin using dual spirit chakrams.',
+                color: 0x00ffaa, // Neon Green
+                colorHex: '#00ffaa',
+                weapon: 'Twin Chakrams',
+                secretName: 'Venom Coil',
+                secretDesc: 'Releases tracking spirit projectiles.',
+                stats: { speed: 1.15, damage: 12, reach: 1.2 }
+            }
+        ];
+
+        const MAX_HP = 100;
+        const MAX_ENERGY = 100;
+        const ENERGY_PER_HIT = 20;
+
+        // --- GLOBAL STATE ---
+        let gameState = 'menu'; // menu, select, playing, gameover
+        let p1Selection = null;
+        let p2Selection = null;
+        let p1Fighter, p2Fighter;
+        let keys = {};
+        let animationId;
+        let matchTimer = 99;
+        let timerInterval;
+
+        // --- DOM ELEMENTS ---
+        const screens = {
+            menu: document.getElementById('screen-menu'),
+            select: document.getElementById('screen-select'),
+            hud: document.getElementById('screen-hud'),
+            gameover: document.getElementById('screen-gameover')
+        };
+        const rosterContainer = document.getElementById('roster-container');
+        const selectStatus = document.getElementById('select-status');
+        const btnFight = document.getElementById('btn-fight');
+
+        // --- STREAMING_CHUNK:Setting up UI Event Listeners and Character Selection Logic... ---
+        
+        // Build Selection Roster
+        CHARACTERS.forEach((char, index) => {
+            const card = document.createElement('div');
+            card.className = `char-card thai-pattern-bg p-4 rounded-lg w-64 text-center border-2 border-gray-700`;
+            card.dataset.id = char.id;
+            card.innerHTML = `
+                <div class="h-32 mb-4 bg-black/50 border border-[${char.colorHex}] flex items-center justify-center rounded">
+                    <!-- Stylized Icon -->
+                    <div class="w-16 h-16 rounded-full border-4" style="border-color: ${char.colorHex}; box-shadow: 0 0 15px ${char.colorHex}"></div>
+                </div>
+                <h2 class="text-xl font-bold cyber-font" style="color: ${char.colorHex}">${char.name}</h2>
+                <h3 class="text-sm text-yellow-400 mb-2">${char.title}</h3>
+                <p class="text-xs text-gray-300 mb-2 h-10">${char.desc}</p>
+                <div class="text-left text-xs bg-black/60 p-2 rounded">
+                    <p><span class="text-gray-400">Weapon:</span> ${char.weapon}</p>
+                    <p><span class="text-yellow-400">Secret:</span> ${char.secretName}</p>
+                </div>
+            `;
+            card.addEventListener('click', () => handleCharacterSelect(char.id, card));
+            rosterContainer.appendChild(card);
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            switchScreen('select');
+            resetSelection();
+            initThreeJS(); // Initialize background scene
+        });
+
+        function handleCharacterSelect(id, cardElement) {
+            if (!p1Selection) {
+                p1Selection = id;
+                cardElement.classList.add('selected-p1');
+                selectStatus.innerText = "Player 2: Choose your warrior";
+                selectStatus.className = "text-xl text-pink-400 mb-8";
+            } else if (!p2Selection) {
+                // Allow same character by cloning visual state, but keeping logic simple
+                p2Selection = id;
+                cardElement.classList.add('selected-p2');
+                selectStatus.innerText = "Warriors Ready!";
+                selectStatus.className = "text-xl text-yellow-400 mb-8 cyber-font glitch-text";
+                btnFight.classList.remove('hidden');
+            }
+        }
+
+        function resetSelection() {
+            p1Selection = null;
+            p2Selection = null;
+            document.querySelectorAll('.char-card').forEach(c => {
+                c.classList.remove('selected-p1', 'selected-p2');
+            });
+            selectStatus.innerText = "Player 1: Choose your warrior";
+            selectStatus.className = "text-xl text-cyan-400 mb-8";
+            btnFight.classList.add('hidden');
+        }
+
+        btnFight.addEventListener('click', () => {
+            startGame();
+        });
+
+        document.getElementById('btn-rematch').addEventListener('click', startGame);
+        document.getElementById('btn-char-select').addEventListener('click', () => {
+            switchScreen('select');
+            resetSelection();
+            clearArena();
+        });
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            screens[screenName].classList.remove('hidden');
+            gameState = screenName;
+        }
+
+        function showMessage(msg) {
+            const el = document.getElementById('battle-message');
+            el.innerText = msg;
+            el.style.transform = 'scale(1)';
+            setTimeout(() => {
+                el.style.transform = 'scale(0)';
+            }, 1500);
+        }
+
+        // --- STREAMING_CHUNK:Initializing Three.js Engine, Camera, and Lighting... ---
+        
+        let scene, camera, renderer;
+        let arenaGroup;
+        let visualEffects = []; // For particles/explosions
+
+        function initThreeJS() {
+            if (scene) return; // Already initialized
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050510, 0.02);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 12, 15);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfff5b6, 0.8); // Golden sunlight
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            const bottomLight = new THREE.PointLight(0x00f0ff, 0.5, 20); // Cyber glow from below
+            bottomLight.position.set(0, -2, 0);
+            scene.add(bottomLight);
+
+            buildArena();
+
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start render loop for background even in menu
+            if(!animationId) animate();
+        }
+
+        function onWindowResize() {
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+
+        // --- STREAMING_CHUNK:Building the 3D Cyber-Ayutthaya Arena... ---
+        function buildArena() {
+            arenaGroup = new THREE.Group();
+            scene.add(arenaGroup);
+
+            // Cyber Grid Floor
+            const gridHelper = new THREE.GridHelper(30, 30, 0x00f0ff, 0x002244);
+            gridHelper.position.y = 0.01;
+            arenaGroup.add(gridHelper);
+
+            // Base Platform (Dark stone/metal)
+            const platformGeom = new THREE.CylinderGeometry(14, 15, 1, 32);
+            const platformMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
+            const platform = new THREE.Mesh(platformGeom, platformMat);
+            platform.position.y = -0.5;
+            platform.receiveShadow = true;
+            arenaGroup.add(platform);
+
+            // Glowing Boundary Ring
+            const ringGeom = new THREE.TorusGeometry(13.5, 0.1, 16, 64);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            const ring = new THREE.Mesh(ringGeom, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 0.02;
+            arenaGroup.add(ring);
+
+            // Ayutthaya Stupas (Chedis) around the arena
+            const chediPositions = [
+                {x: -12, z: -12}, {x: 12, z: -12},
+                {x: -12, z: 12}, {x: 12, z: 12}
+            ];
+
+            chediPositions.forEach(pos => {
+                const chedi = createChedi();
+                chedi.position.set(pos.x, 0, pos.z);
+                arenaGroup.add(chedi);
+            });
+        }
+
+        function createChedi() {
+            const group = new THREE.Group();
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xffa500, metalness: 0.8, roughness: 0.2 });
+            
+            // Base
+            const base = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), goldMat);
+            base.position.y = 1;
+            base.castShadow = true;
+            group.add(base);
+
+            // Bell shape
+            const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 1.2, 2, 16), goldMat);
+            bell.position.y = 3;
+            bell.castShadow = true;
+            group.add(bell);
+
+            // Spire
+            const spire = new THREE.Mesh(new THREE.ConeGeometry(0.2, 3, 16), goldMat);
+            spire.position.y = 5.5;
+            spire.castShadow = true;
+            group.add(spire);
+
+            // Neon accent
+            const accent = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.05, 8, 32), new THREE.MeshBasicMaterial({color: 0x00f0ff}));
+            accent.rotation.x = Math.PI / 2;
+            accent.position.y = 2.1;
+            group.add(accent);
+
+            return group;
+        }
+
+        // --- STREAMING_CHUNK:Defining the Fighter Class, Animation, and Combat Logic... ---
+        class Fighter {
+            constructor(playerNum, charData, startPos) {
+                this.playerNum = playerNum;
+                this.data = charData;
+                this.hp = MAX_HP;
+                this.energy = 0;
+                
+                this.position = new THREE.Vector3(startPos.x, 0, startPos.z);
+                this.velocity = new THREE.Vector3(0, 0, 0);
+                this.facing = new THREE.Vector3(playerNum === 1 ? 1 : -1, 0, 0);
+                
+                this.isAttacking = false;
+                this.isDefending = false;
+                this.attackCooldown = 0;
+                this.hitStun = 0;
+
+                this.mesh = this.buildMesh();
+                this.mesh.position.copy(this.position);
+                scene.add(this.mesh);
+                
+                this.updateHUD();
+            }
+
+            buildMesh() {
+                const group = new THREE.Group();
+
+                // Materials
+                const armorMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.7, roughness: 0.3 }); // Gold
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); // Dark Cyber Suit
+                const neonMat = new THREE.MeshBasicMaterial({ color: this.data.color }); // Weapon glow
+
+                // Body
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.8, 16), bodyMat);
+                body.position.y = 0.9;
+                body.castShadow = true;
+                group.add(body);
+
+                // Head (Chada - Thai Crown)
+                const headGroup = new THREE.Group();
+                headGroup.position.y = 2.0;
+                
+                const face = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), bodyMat);
+                headGroup.add(face);
+                
+                const crown = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 16), armorMat);
+                crown.position.y = 0.6;
+                headGroup.add(crown);
+                
+                // Visor
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.15, 0.2), neonMat);
+                visor.position.set(0, 0, 0.2);
+                headGroup.add(visor);
+
+                group.add(headGroup);
+
+                // Shoulder Pads (Kanok pattern proxy)
+                const shoulderGeom = new THREE.SphereGeometry(0.3, 16, 16, 0, Math.PI, 0, Math.PI/2);
+                const lShoulder = new THREE.Mesh(shoulderGeom, armorMat);
+                lShoulder.position.set(-0.5, 1.6, 0);
+                const rShoulder = new THREE.Mesh(shoulderGeom, armorMat);
+                rShoulder.position.set(0.5, 1.6, 0);
+                group.add(lShoulder);
+                group.add(rShoulder);
+
+                // Weapon Anchor (rotates during attack)
+                this.weaponPivot = new THREE.Group();
+                this.weaponPivot.position.set(0, 1, 0.5);
+                
+                // Specific Weapon Geometry
+                let wMesh;
+                if (this.data.id === 'singha') {
+                    // Sword
+                    wMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 0.3), neonMat);
+                    wMesh.position.y = 0.75;
+                } else if (this.data.id === 'hanuman') {
+                    // Staff
+                    wMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.5), neonMat);
+                } else {
+                    // Chakram
+                    wMesh = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.05, 8, 24), neonMat);
+                    wMesh.rotation.y = Math.PI/2;
+                }
+                
+                this.weaponMesh = wMesh;
+                this.weaponPivot.add(wMesh);
+                group.add(this.weaponPivot);
+
+                // Target indicator ring
+                const ring = new THREE.Mesh(
+                    new THREE.RingGeometry(0.6, 0.7, 32),
+                    new THREE.MeshBasicMaterial({ color: this.playerNum === 1 ? 0x00f0ff : 0xff003c, side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
+                );
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 0.05;
+                group.add(ring);
+
+                return group;
+            }
+
+            update(dt, enemy) {
+                if (this.hitStun > 0) {
+                    this.hitStun -= dt;
+                    // Flash effect
+                    this.mesh.visible = Math.floor(this.hitStun * 20) % 2 === 0;
+                    return;
+                } else {
+                    this.mesh.visible = true;
+                }
+
+                if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+                // Handle Input & Movement
+                this.velocity.set(0,0,0);
+                const speed = 8 * this.data.stats.speed;
+
+                if (!this.isAttacking) {
+                    if (this.playerNum === 1) {
+                        if (keys['w']) this.velocity.z -= speed;
+                        if (keys['s']) this.velocity.z += speed;
+                        if (keys['a']) this.velocity.x -= speed;
+                        if (keys['d']) this.velocity.x += speed;
+                    } else {
+                        if (keys['ArrowUp']) this.velocity.z -= speed;
+                        if (keys['ArrowDown']) this.velocity.z += speed;
+                        if (keys['ArrowLeft']) this.velocity.x -= speed;
+                        if (keys['ArrowRight']) this.velocity.x += speed;
+                    }
+
+                    if (this.velocity.lengthSq() > 0) {
+                        this.velocity.normalize().multiplyScalar(speed);
+                        this.position.addScaledVector(this.velocity, dt);
+                        
+                        // Face movement direction
+                        this.facing.copy(this.velocity).normalize();
+                        const targetAngle = Math.atan2(this.facing.x, this.facing.z);
+                        this.mesh.rotation.y = targetAngle;
+                    } else {
+                        // Face enemy if standing still
+                        const dirToEnemy = new THREE.Vector3().subVectors(enemy.position, this.position).normalize();
+                        const targetAngle = Math.atan2(dirToEnemy.x, dirToEnemy.z);
+                        // Smooth rotation
+                        this.mesh.rotation.y += (targetAngle - this.mesh.rotation.y) * 0.1;
+                    }
+                }
+
+                // Constrain to arena radius (13)
+                const distFromCenter = this.position.length();
+                if (distFromCenter > 13) {
+                    this.position.normalize().multiplyScalar(13);
+                }
+
+                this.mesh.position.copy(this.position);
+
+                // Animate weapon idle
+                if (!this.isAttacking) {
+                    this.weaponPivot.rotation.x = Math.sin(Date.now() * 0.002) * 0.2;
+                    this.weaponPivot.rotation.z = Math.cos(Date.now() * 0.002) * 0.1;
+                    if(this.data.id === 'naga') this.weaponMesh.rotation.z += 0.05; // Spin chakram
+                }
+            }
+
+            // --- STREAMING_CHUNK:Combat System: Attacks, Secret Moves, and Damage Handling... ---
+            attack(enemy) {
+                if (this.attackCooldown > 0 || this.hitStun > 0 || this.isAttacking) return;
+
+                this.isAttacking = true;
+                this.attackCooldown = 0.5;
+
+                // Weapon swing animation
+                const originalRotX = this.weaponPivot.rotation.x;
+                const swingAnim = setInterval(() => {
+                    this.weaponPivot.rotation.x -= 0.4;
+                }, 16);
+
+                setTimeout(() => {
+                    clearInterval(swingAnim);
+                    this.weaponPivot.rotation.x = originalRotX;
+                    this.isAttacking = false;
+
+                    // Hit detection logic
+                    const dist = this.position.distanceTo(enemy.position);
+                    // Check if facing enemy roughly
+                    const dirToEnemy = new THREE.Vector3().subVectors(enemy.position, this.position).normalize();
+                    const dot = this.facing.dot(dirToEnemy);
+
+                    if (dist < 2.5 * this.data.stats.reach && dot > 0.5) {
+                        enemy.takeDamage(this.data.stats.damage);
+                        this.gainEnergy(ENERGY_PER_HIT);
+                        createHitEffect(enemy.position.clone().add(new THREE.Vector3(0, 1, 0)), this.data.color);
+                    }
+
+                }, 150); // Swing duration
+            }
+
+            secretMove(enemy) {
+                if (this.energy < MAX_ENERGY || this.hitStun > 0 || this.isAttacking) return;
+                
+                this.energy = 0;
+                this.updateHUD();
+                this.isAttacking = true;
+                this.attackCooldown = 1.5; // Longer recovery
+
+                showMessage(this.data.secretName.toUpperCase() + "!");
+                
+                // Visual Effect
+                const aura = new THREE.Mesh(
+                    new THREE.SphereGeometry(1, 16, 16),
+                    new THREE.MeshBasicMaterial({ color: this.data.color, transparent: true, opacity: 0.8, wireframe: true })
+                );
+                aura.position.copy(this.position).setY(1);
+                scene.add(aura);
+
+                let scale = 1;
+                const expand = setInterval(() => {
+                    scale += 0.5;
+                    aura.scale.set(scale, scale, scale);
+                    aura.material.opacity -= 0.05;
+                    if(aura.material.opacity <= 0) {
+                        clearInterval(expand);
+                        scene.remove(aura);
+                        this.isAttacking = false;
+                    }
+                }, 30);
+
+                // Screen shake
+                shakeCamera();
+
+                // Apply massive damage if enemy is within range (AOE)
+                setTimeout(() => {
+                    const dist = this.position.distanceTo(enemy.position);
+                    if (dist < 6) { // Large AOE
+                        enemy.takeDamage(this.data.stats.damage * 3);
+                        enemy.hitStun = 0.5; // Extra stun
+                        createHitEffect(enemy.position.clone().add(new THREE.Vector3(0,1,0)), this.data.color, 3);
+                    }
+                }, 300);
+            }
+
+            takeDamage(amount) {
+                this.hp -= amount;
+                if (this.hp < 0) this.hp = 0;
+                this.hitStun = 0.2;
+                
+                // Knockback
+                const knockbackDir = new THREE.Vector3().subVectors(this.position, (this.playerNum===1?p2Fighter:p1Fighter).position).normalize();
+                this.position.add(knockbackDir.multiplyScalar(0.5));
+
+                this.updateHUD();
+                
+                if (this.hp === 0) {
+                    endGame(this.playerNum === 1 ? 2 : 1);
+                }
+            }
+
+            gainEnergy(amount) {
+                this.energy += amount;
+                if (this.energy > MAX_ENERGY) this.energy = MAX_ENERGY;
+                this.updateHUD();
+            }
+
+            updateHUD() {
+                const hpEl = document.getElementById(`p${this.playerNum}-hp`);
+                const energyEl = document.getElementById(`p${this.playerNum}-energy`);
+                const readyEl = document.getElementById(`p${this.playerNum}-secret-ready`);
+                
+                hpEl.style.width = `${(this.hp / MAX_HP) * 100}%`;
+                energyEl.style.width = `${(this.energy / MAX_ENERGY) * 100}%`;
+
+                if (this.energy === MAX_ENERGY) {
+                    readyEl.classList.remove('hidden');
+                    energyEl.style.background = 'linear-gradient(90deg, #fff, #ffd700)';
+                } else {
+                    readyEl.classList.add('hidden');
+                    energyEl.style.background = `linear-gradient(${this.playerNum === 1 ? '90deg' : '270deg'}, #ffd700, #ff8c00)`;
+                }
+            }
+        }
+
+        // --- STREAMING_CHUNK:Visual Effects and Game State Management... ---
+        
+        function createHitEffect(pos, color, scaleFactor = 1) {
+            const geom = new THREE.BoxGeometry(0.2*scaleFactor, 0.2*scaleFactor, 0.2*scaleFactor);
+            const mat = new THREE.MeshBasicMaterial({ color: color });
+            
+            for(let i=0; i<5*scaleFactor; i++) {
+                const p = new THREE.Mesh(geom, mat);
+                p.position.copy(pos);
+                p.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 10,
+                    Math.random() * 10,
+                    (Math.random() - 0.5) * 10
+                );
+                p.life = 1.0;
+                scene.add(p);
+                visualEffects.push(p);
+            }
+        }
+
+        let cameraShake = 0;
+        function shakeCamera() {
+            cameraShake = 10;
+        }
+
+        function startGame() {
+            switchScreen('hud');
+            clearArena();
+            
+            const c1 = CHARACTERS.find(c => c.id === p1Selection);
+            const c2 = CHARACTERS.find(c => c.id === p2Selection);
+
+            document.getElementById('p1-name').innerText = c1.name.toUpperCase();
+            document.getElementById('p1-name').style.color = c1.colorHex;
+            document.getElementById('p2-name').innerText = c2.name.toUpperCase();
+            document.getElementById('p2-name').style.color = c2.colorHex;
+
+            p1Fighter = new Fighter(1, c1, {x: -5, z: 0});
+            p2Fighter = new Fighter(2, c2, {x: 5, z: 0});
+
+            matchTimer = 99;
+            document.getElementById('round-timer').innerText = matchTimer;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (gameState === 'hud') {
+                    matchTimer--;
+                    document.getElementById('round-timer').innerText = matchTimer;
+                    if (matchTimer <= 0) {
+                        // Time out, check HP
+                        if (p1Fighter.hp > p2Fighter.hp) endGame(1);
+                        else if (p2Fighter.hp > p1Fighter.hp) endGame(2);
+                        else endGame(0); // Draw
+                    }
+                }
+            }, 1000);
+
+            showMessage("FIGHT!");
+        }
+
+        function clearArena() {
+            if (p1Fighter && p1Fighter.mesh) scene.remove(p1Fighter.mesh);
+            if (p2Fighter && p2Fighter.mesh) scene.remove(p2Fighter.mesh);
+            visualEffects.forEach(v => scene.remove(v));
+            visualEffects = [];
+            p1Fighter = null;
+            p2Fighter = null;
+        }
+
+        function endGame(winner) {
+            gameState = 'gameover';
+            clearInterval(timerInterval);
+            
+            const winText = document.getElementById('winner-text');
+            if (winner === 1) {
+                winText.innerText = "PLAYER 1 WINS";
+                winText.style.color = p1Fighter.data.colorHex;
+            } else if (winner === 2) {
+                winText.innerText = "PLAYER 2 WINS";
+                winText.style.color = p2Fighter.data.colorHex;
+            } else {
+                winText.innerText = "DRAW";
+                winText.style.color = "#ffffff";
+            }
+
+            setTimeout(() => {
+                switchScreen('gameover');
+            }, 1000); // Short delay to see the final blow
+        }
+
+        // --- STREAMING_CHUNK:Input Handling and Main Game Loop... ---
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (gameState === 'hud' && p1Fighter && p2Fighter) {
+                // Attacks
+                if (e.key === 'f' || e.key === 'F') p1Fighter.attack(p2Fighter);
+                if (e.key === 'l' || e.key === 'L') p2Fighter.attack(p1Fighter);
+                
+                // Secret Moves
+                if (e.key === 'g' || e.key === 'G') p1Fighter.secretMove(p2Fighter);
+                if (e.key === 'k' || e.key === 'K') p2Fighter.secretMove(p1Fighter);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+
+            // Update Fighters
+            if (gameState === 'hud' && p1Fighter && p2Fighter) {
+                p1Fighter.update(dt, p2Fighter);
+                p2Fighter.update(dt, p1Fighter);
+            }
+
+            // Update Particles
+            for(let i = visualEffects.length - 1; i >= 0; i--) {
+                const p = visualEffects[i];
+                p.position.addScaledVector(p.velocity, dt);
+                p.velocity.y -= 20 * dt; // gravity
+                p.life -= dt * 2;
+                if (p.material.opacity !== undefined) {
+                    p.material.transparent = true;
+                    p.material.opacity = p.life;
+                }
+                if(p.life <= 0) {
+                    scene.remove(p);
+                    visualEffects.splice(i, 1);
+                }
+            }
+
+            // Camera Shake logic
+            if (cameraShake > 0) {
+                camera.position.x = (Math.random() - 0.5) * 0.5;
+                camera.position.y = 12 + (Math.random() - 0.5) * 0.5;
+                cameraShake--;
+            } else {
+                camera.position.x = 0;
+                camera.position.y = 12;
+            }
+
+            // Rotate Arena slightly for cyber feel
+            if (arenaGroup && gameState !== 'hud') {
+                arenaGroup.rotation.y += 0.001;
+            } else if (arenaGroup) {
+                // Reset rotation for actual fighting
+                arenaGroup.rotation.y = 0;
+            }
+
+            if(renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+    </script>
+</body>
+</html>
